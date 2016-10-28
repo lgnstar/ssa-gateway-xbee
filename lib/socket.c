@@ -415,7 +415,7 @@ int socket_post1(char *post,char *buf)
 		return 0;
 	}
 	//printf("f=%f\n",_val);
-	sprintf(obuf,	"POST /ssa/teste/teste.php  HTTP/1.0\r\n"
+	sprintf(obuf,	"POST /ssa/scripts/gate_xbee.php  HTTP/1.0\r\n"
 					"Host: lronetto.com\r\n"
 					"Content-Type: application/x-www-form-urlencoded\r\n"
 					"Content-Length: %d \r\n\r\n"
