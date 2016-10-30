@@ -669,7 +669,7 @@ int socket_SSL1(char *post,char *buf,char *addr){
 		printf("bufperca='%s'",obuf);
 	}
 	total++;
-	SSL_library_init();
+	 SSL_library_init();
 
 	ERR_load_BIO_strings();
 
