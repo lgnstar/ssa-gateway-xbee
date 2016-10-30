@@ -6,3 +6,4 @@ int socket_mac(char *mac,char *ip);
 static char *ethernet_mactoa(struct sockaddr *addr);
 int socket_post(char *post, char *out);
 int socket_post1(char *post, char *buf);
+int socket_SSL1(char *post,char *buf,char *addr);

@@ -20,6 +20,8 @@
 
 #include "cod.h"
 
+int total=0;
+int total_certo=0;
 #define BUF_MAX 4096
 
 #define PACKETSIZE  64
@@ -387,12 +389,14 @@ int socket_open(int port){
 	int f=inet_pton(AF_INET, ip, (void *)(&(seu_endereco->sin_addr.s_addr)));
 	if(f<0){
 		printf("erro addr");
+		fflush(stdout);
 		free(seu_endereco);
 		return 0;
 		}
 	if (connect(Meusocket,(struct sockaddr *)seu_endereco, sizeof(struct sockaddr))<0)
 	{
 		printf("connect error \r\n");
+		fflush(stdout);
 		free(seu_endereco);
 		close(Meusocket);
 		return 0;
@@ -412,10 +416,11 @@ int socket_post1(char *post,char *buf)
 	//printf("teste1\r\n");
 	if((sock=socket_open(80))==0){
 		printf("open error\r\n");
+		fflush(stdout);
 		return 0;
 	}
 	//printf("f=%f\n",_val);
-	sprintf(obuf,	"POST /ssa/scripts/gate_xbee.php  HTTP/1.0\r\n"
+	sprintf(obuf,	"POST /ssa/teste/teste.php  HTTP/1.0\r\n"
 					"Host: lronetto.com\r\n"
 					"Content-Type: application/x-www-form-urlencoded\r\n"
 					"Content-Length: %d \r\n\r\n"
@@ -427,6 +432,7 @@ int socket_post1(char *post,char *buf)
 	//fflush(stdout);
 	if(send(sock, obuf, strlen(obuf), 0)<0){
 		printf("send error\r\n");
+		fflush(stdout);
 		//free(seu_endereco);
 		close(sock);
 		return 0;
@@ -434,7 +440,6 @@ int socket_post1(char *post,char *buf)
 
 	memset(ibuf,0,sizeof(ibuf));
 	
-	printf("teste6\r\n");
 
 	char * htmlcontent;
 	int htmlstart = 0,tmpres;
@@ -443,6 +448,7 @@ int socket_post1(char *post,char *buf)
 	memset(ibuf1,0,sizeof(ibuf1));
 	if((tmpres=recv(sock, ibuf, BUFSIZ, 0))<0){
 		printf("recv error\r\n");
+		fflush(stdout);
 		//free(seu_endereco);
 		close(sock);
 		return 0;
@@ -465,8 +471,6 @@ int socket_post1(char *post,char *buf)
 
 	//free(seu_endereco);
  	close(sock);
-
- 	printf("teste7\r\n");
 	return 1;
 
 }
@@ -498,16 +502,17 @@ char *pointer;
 
 
 
-    OpenSSL_add_all_algorithms();
-    ERR_load_BIO_strings();
-    ERR_load_crypto_strings();
-    SSL_load_error_strings();
+    //OpenSSL_add_all_algorithms();
+    //ERR_load_BIO_strings();
+   // ERR_load_crypto_strings();
+   // SSL_load_error_strings();
 
     outbio    = BIO_new(BIO_s_file());
     outbio    = BIO_new_fp(stdout, BIO_NOCLOSE);
       
     if(SSL_library_init() < 0){
-        BIO_printf(outbio, "Could not initialize the OpenSSL library !\n");
+        printf( "Could not initialize the OpenSSL library !\n");
+        fflush(stdout);
         //SSL_free(ssl);
 		//close(sd);
 		//SSL_CTX_free(ctx);
@@ -516,22 +521,32 @@ char *pointer;
 
     method = SSLv23_client_method();
     ctx = SSL_CTX_new(method);
-    SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
+
+    if(! SSL_CTX_load_verify_locations(ctx,NULL, "/home/ssa/ssl/"))
+    {
+        printf("error load\r\n");
+        fflush(stdout);
+    }
+
+    SSL_CTX_set_options(ctx, SSL_MODE_AUTO_RETRY);
 
     if((sd=socket_open(443))==0){
     	printf("open error\r\n");
+    	fflush(stdout);
     	SSL_CTX_free(ctx);
     	return 0;
     	}
 
     if((ssl = SSL_new(ctx))==NULL){
     	printf("SSL_new error\r\n");
+    	fflush(stdout);
     	SSL_CTX_free(ctx);
     	close(sd);
     	return 0;
     	}
     if(!SSL_set_fd(ssl, sd)){
     	printf("SSL_set_fd error\r\n");
+    	fflush(stdout);
     	SSL_free(ssl);
     	SSL_CTX_free(ctx);
     	close(sd);
@@ -541,6 +556,7 @@ char *pointer;
 
    if( SSL_connect(ssl)<1){
 	   printf("SSL_connect error\r\n");
+	   fflush(stdout);
 	   SSL_free(ssl);
 	   SSL_CTX_free(ctx);
 	   close(sd);
@@ -554,19 +570,22 @@ char *pointer;
                                         strlen(post),post);
     if((rb=SSL_write(ssl, obuf, sizeof(obuf)))<1){
     	printf("SSL_write error\r\n");
+    	fflush(stdout);
     	SSL_free(ssl);
     	SSL_CTX_free(ctx);
     	close(sd);
     	return 0;
     	}
 
-    printf("teste7\r\n");
+   // printf("teste7\r\n");
 
     memset(ibuf, '\0', sizeof(ibuf));
  	memset(ibuf1, '\0', sizeof(ibuf1));
-    int error;
+    long error;
     if((bytes = SSL_read(ssl, ibuf, sizeof(ibuf)))<1){
     	error=SSL_get_error(ssl,bytes);
+    	printf("SSL_read error %d  %d %s\r\n",error,bytes,ERR_error_string(error, NULL));
+    	fflush(stdout);
     	//printf(ibuf);
     	switch(error){
     		case SSL_ERROR_NONE:
@@ -597,7 +616,7 @@ char *pointer;
     			printf("SSL_ERROR_ZERO_RETURN\r\n");
     			break;
     	}
-    	printf("SSL_read error %d\r\n",error);
+
     	SSL_shutdown (ssl);
     	SSL_free(ssl);
     	SSL_CTX_free(ctx);
@@ -618,7 +637,7 @@ char *pointer;
 		return 0;
     	}
 	sprintf(buf,pointer);
-	//free(pointer);
+	free(pointer);
 	//SSL_shutdown (ssl);
 	SSL_free(ssl);
 	SSL_CTX_free(ctx);
@@ -626,6 +645,156 @@ char *pointer;
 
 
 return 1;
+}
+int socket_SSL1(char *post,char *buf,char *addr){
+	BIO * bio;
+	SSL * ssl;
+	SSL_CTX * ctx;
+	char r[1024];
+	char ibuf1[1024];
+	int bytes;
+	char *pointer;
+	char obuf[1000];
+	int i=0,j;
+	if(total>=1)
+		printf("total=%d total_certo=%d %2.2f\r\n",total,total_certo,(1.0-((float)total_certo/(float)total))*100.0);
+	if(total==100){
+		//sprintf(r,"act=perca&mac=%s&perca=%3.2f",addr,(1.0-((float)total_certo/(float)total))*100.0);
+
+		printf("perda=%3.2f\r\n",(1.0-((float)total_certo/(float)total))*100.0);
+		total=0;
+		total_certo=0;
+		printf("buf=%s\r\n",r);
+		//socket_post1(r,obuf);
+		printf("bufperca='%s'",obuf);
+	}
+	total++;
+	SSL_library_init();
+
+	ERR_load_BIO_strings();
+
+	SSL_load_error_strings();
+
+	OpenSSL_add_all_algorithms();
+
+	/* Set up the SSL context */
+	ctx = SSL_CTX_new(SSLv23_client_method());
+	/* Load the trust store */
+	//printf("teste1\r\n");
+	if(! SSL_CTX_load_verify_locations(ctx, "/home/TrustStore.pem", NULL))
+	{
+		//printf("teste2\r\n");
+		fprintf(stderr, "Error loading trust store\n");
+		ERR_print_errors_fp(stderr);
+		SSL_CTX_free(ctx);
+		return 0;
+	}
+	//printf("teste2\r\n");
+	bio = BIO_new_ssl_connect(ctx);
+	//printf("teste3\r\n");
+	BIO_get_ssl(bio, & ssl);
+	//printf("teste4\r\n");
+	SSL_set_mode(ssl, SSL_MODE_AUTO_RETRY);
+	//printf("teste5\r\n");
+
+	/* Create and setup the connection */
+
+	BIO_set_conn_hostname(bio, "lronetto.com:443");
+
+	//printf("teste6\r\n");
+	if(BIO_do_connect(bio) <= 0){
+		fprintf(stderr, "Error attempting to connect\n");
+		ERR_print_errors_fp(stderr);
+		BIO_free_all(bio);
+		SSL_CTX_free(ctx);
+		return 0;
+
+	}
+
+	/* Check the certificate */
+
+	//printf("teste7\r\n");
+	if(SSL_get_verify_result(ssl) != X509_V_OK)
+
+	{
+		fprintf(stderr, "Certificate verification error: %i\n", SSL_get_verify_result(ssl));
+
+		BIO_free_all(bio);
+		SSL_CTX_free(ctx);
+		return 0;
+	}
+
+	//printf("teste8\r\n");
+
+	memset(obuf,0,sizeof(obuf));
+	sprintf(obuf,   "POST /ssa/scripts/gate_xbee.php  HTTP/1.0\r\n"
+	                                        "Host: lronetto.com\r\n"
+	                                        "Content-Type: application/x-www-form-urlencoded\r\n"
+	                                        "Content-Length: %d \r\n"
+	                                        "Connection: Close\r\n\r\n"
+	                                        "%s\r\n",
+	                                        strlen(post),post);
+
+	BIO_write(bio, obuf, strlen(obuf));
+	memset(ibuf1,0,sizeof(ibuf1));
+	memset(r,0,sizeof(r));
+	//printf("teste9\r\n");
+	bytes = BIO_read(bio, r, BUFSIZ);
+	while(bytes > 0){
+		//printf(r);
+		strcat(ibuf1,r);
+
+		bytes = BIO_read(bio, r, BUFSIZ);
+		}
+	//printf("teste10 len=%d\r\n",strlen(ibuf1));
+	fflush(stdout);
+	BIO_free_all(bio);
+	SSL_CTX_free(ctx);
+	 if(strlen(ibuf1)==0){
+                printf("slrlen=0\r\n");
+                return 0;
+                }
+	//printf("teste11\r\n");
+	fflush(stdout);
+	//printf("ibuf1=\"%s\"",ibuf1);
+	//fflush(stdout);
+	int len=strlen(ibuf1);
+	i=0;
+	while(!(ibuf1[i]=='$' & ibuf1[i+1]=='$') & i<(len)) i++;
+	if(i>=(len)){
+		printf("erro n t $$\r\n");
+		return 0;
+	}
+
+	//printf("pointer=\"%s\"",pointer);
+	//fflush(stdout);
+	//printf("teste13\r\n");
+	//fflush(stdout);
+	//i=0;
+	memset(obuf,0,sizeof(obuf));
+	j=0;
+	//i=0;
+	i++;
+	while(ibuf1[i]!='&' && i<len){
+		obuf[j]=ibuf1[i];
+		i++;
+		j++;
+	}
+	if(i>=len){
+		printf("sem &\r\n");
+		return 0;
+		}
+	//printf("teste14\r\n");
+	//fflush(stdout);
+	//printf("obuf=\"%s\"",obuf);
+	sprintf(buf,obuf);
+
+	total_certo++;
+
+	 return 1;
+
+
+
 }
 int socket_modbus(char *ip,uint8_t unit,uint16_t reg){
 	int s;
