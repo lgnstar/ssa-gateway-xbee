@@ -669,7 +669,11 @@ int socket_SSL1(char *post,char *buf,char *addr){
 		printf("bufperca='%s'",obuf);
 	}
 	total++;
+<<<<<<< HEAD
 	 SSL_library_init();
+=======
+	SSL_library_init();
+>>>>>>> 0830da7c684f0a126d6a0466bce2ac8e03ed8520
 
 	ERR_load_BIO_strings();
 
@@ -681,7 +685,11 @@ int socket_SSL1(char *post,char *buf,char *addr){
 	ctx = SSL_CTX_new(SSLv23_client_method());
 	/* Load the trust store */
 	//printf("teste1\r\n");
+<<<<<<< HEAD
 	if(! SSL_CTX_load_verify_locations(ctx, "/home/TrustStore.pem", NULL))
+=======
+	if(! SSL_CTX_load_verify_locations(ctx, "/home/ssa/main/TrustStore.pem", NULL))
+>>>>>>> 0830da7c684f0a126d6a0466bce2ac8e03ed8520
 	{
 		//printf("teste2\r\n");
 		fprintf(stderr, "Error loading trust store\n");
