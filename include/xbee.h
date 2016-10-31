@@ -40,7 +40,9 @@ typedef struct{
 
 typedef struct{
 	uint8_t type;
-	char myaddr[20];
+	//string addr
+	uint8_t myaddr[20];
+	//vetor addr
 	uint8_t myaddres[8];
 	uint8_t Address[8];
 	uint8_t addr_cord[8];

@@ -40,111 +40,13 @@ typedef union{
 	}float_T;
 
 	
-int socket_var(char *address, int var,float *f)
-{
-	int out=0;
-	float_T aux_float;
-	uint8_t ibuf[20],j;
-	uint8_t obuf[20];
-  	int Meusocket, numbytes,i;
-	char buf[20];
-	struct sockaddr_in seu_endereco;
-	fd_set readfds,masterfds;
-  	struct timeval tv;
 
-	//FD_ZERO(&fds);
-  	tv.tv_sec = 3;
-  	tv.tv_usec = 0;
-	
-
-	if ((Meusocket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
-	{
-		close(Meusocket);
-		return 0;
-	}
-	FD_ZERO(&masterfds);
-   	FD_SET(Meusocket, &masterfds);
-	
-	memcpy(&readfds, &masterfds, sizeof(fd_set));
-	
-	
-	
-	seu_endereco.sin_family = AF_INET;
-	seu_endereco.sin_port = htons(9500);
-	seu_endereco.sin_addr.s_addr = inet_addr(address);
-	bzero(&(seu_endereco.sin_zero), 8);
-
-	if (connect(Meusocket,(struct sockaddr *)&seu_endereco, sizeof(struct sockaddr)) ==-1) 
-	{
-		close(Meusocket);
-		return 0;
-	}
-	obuf[0]=FUNC_PEDVAR;
-	obuf[1]=var;
-	/*FD_SET(Meusocket, &fds);
-	printf("enviar\n");
-  	i = select(32, NULL, &fds, NULL, &tv);
-	if (i<=0){
-    		printf("select - error %d\n",i);
-    		close(Meusocket);
-    		return 0;
-  		}*/
-	
-	send(Meusocket, obuf, 2, 0);
-
-	//printf("recebe\n");
-	/*FD_SET(Meusocket, &fds);
-  	i = select(32, NULL, &fds, NULL, &tv);
-	if (i<=0){
-    		printf("select - error %d\n",i);
-    		close(Meusocket);
-    		return 0;
-  		}*/
-	
-	//printf("i=%d\n",i);
-	//for(j=0;j<(i);j++)
-	//	printf("bufi[%d]=%d\n",j,ibuf[j]);
-	//printf("\n");
-	if (select(Meusocket+1, &readfds, NULL, NULL, &tv) < 0){
-     		perror("on select");
-     		exit(0);
-   		}
-	if (FD_ISSET(Meusocket, &readfds)){
-     		i = recv(Meusocket, ibuf,20, 0);
-		if(i!=0){
-			out=1;
-			for(i=0;i<4;i++)
-				aux_float.byte.b[i]=ibuf[1+i];
-			//printf("f=%f\n",aux_float.f);
-			}
-   		}
-   	else{
-		close(Meusocket);
-		//printf("timeout\n");
-     // the socket timedout
-  		return 0;
-		
-		}
-	
- 	close(Meusocket);
-	*f=aux_float.f;
-	return 1;
-
-}
 int socket_send(char *buf, int tam, char *ip, int porta)
 {
-	int out=0;
-	uint8_t ibuf[100],j;
-	char obuf[100];
-  	int Meusocket, numbytes,i;
+  	int Meusocket;
 	
 	struct sockaddr_in seu_endereco;
-	fd_set readfds,masterfds;
-  	struct timeval tv;
 
-	//FD_ZERO(&fds);
-  	tv.tv_sec = 3;
-  	tv.tv_usec = 0;
 	
 
 	if ((Meusocket = socket(AF_INET, SOCK_STREAM, 0)) == -1) 
@@ -195,12 +97,9 @@ int socket_send(char *buf, int tam, char *ip, int porta)
 }
 int socket_thingspeak(char *key, int field, float valor)
 {
-	int out=0;
-	printf("f=%f\n",valor);
-	uint8_t ibuf[100],j;
+
 	char obuf[100];
-  	int Meusocket, numbytes,i;
-	char buf[20];
+  	int Meusocket;
 	struct sockaddr_in seu_endereco;
 	fd_set readfds,masterfds;
   	struct timeval tv;
@@ -256,98 +155,6 @@ int socket_thingspeak(char *key, int field, float valor)
 	return 1;
 
 }
-int socket_post(char *post, char *resp){
-	int s;
-  	int i;
-  	struct sockaddr_in server;
-  	fd_set fds;
-  	struct timeval tv;
-  	unsigned char obuf[361];
-  	unsigned char ibuf[561];
-  	char out[500];
-
-  	/* establish connection to gateway on ASA standard port 502 */
-  	s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-  	server.sin_family = AF_INET;
-  	server.sin_port = htons(80); /* ASA standard port */
-  	server.sin_addr.s_addr = inet_addr("166.62.101.58");
-
-  	i = connect(s, (struct sockaddr *)&server, sizeof(struct sockaddr_in));
-  	if (i<0){
-    		printf("connect - error %d\n",i);
-    		close(s);
-    		return 0;
-  		}
-
-  	FD_ZERO(&fds);
-  	tv.tv_sec = 5;
-  	tv.tv_usec = 0;
-
-  	/* check ready to send */
-  	FD_SET(s, &fds);
-  	i = select(32, NULL, &fds, NULL, &tv);
-  	if (i<=0){
-    		printf("select - error %d\n",i);
-    		close(s);
-    		return 0;
-  		}
-
-  	sprintf(obuf,"POST /ssa/teste/teste.php  HTTP/1.0\r\n");
-	sprintf(obuf,"%sHost: lronetto.com\r\n",obuf);
-	sprintf(obuf,"%sContent-Type: application/x-www-form-urlencoded\r\n",obuf);
-	sprintf(obuf,"%sContent-Length: %d \r\n\r\n",obuf,strlen(post));
-	sprintf(obuf,"%s%s\r\n",obuf,post);
-  	/* send request */
-  	i = send(s, obuf, strlen(obuf)+1, 0);
-  	if (i<(strlen(obuf)+1)){
-		close(s);
-    		return 0;
-    		printf("failed to send all 12 chars\n");
-  		}
-
-  	/* wait for response */
-  	FD_SET(s, &fds);
-  	tv.tv_sec = 3;
-  	tv.tv_usec = 0;
-  	i = select(32, &fds, NULL, NULL, &tv);
-  	if (i<=0){
-    		printf("no TCP response received\n");
-    		close(s);
-    		return 0;
-  		}
-
-  	/* receive and analyze response */
-  	i = recv(s, ibuf, 261, 0);
-  	printf("i=%d\r\n",i);
-	fflush(stdout);
-  	//printf("buf=%s\r\n",ibuf);
-  	int j,bn=0,offset=0,cnt=0;
-	printf("\r\n");
-	fflush(stdout);
-	cnt=0;
-	bn=0;
-  	for(j=0;j<i;j++){
-		printf("%c",ibuf[j]);
-		fflush(stdout);
-
-  		if(ibuf[j]=='\n') bn++;
-  		if(bn==9){
-  			offset=j+1;
-  			out[cnt++]=ibuf[j+1];
-  			//break;
-  		}
-  	}
-	printf("\r\n cnt=%d bn=%d\r\n",cnt,bn);
-  	out[cnt-1]='\0';
-  	//memcpy(resp,out,strlen(out));
-  	sprintf(resp,"%s",out);
-  	//printf("buf=%s\r\n",out);
-	fflush(stdout);
-  	//printf("bn=%d obuf[j]=%c %c %c\r\n",bn,ibuf[offset],ibuf[offset+1],ibuf[offset+2]);
-  	/* close down connection */
-  	close(s);
-	return 1;
-	}
 
 int get_ip(char *host,char *ip)
 {
@@ -406,13 +213,10 @@ int socket_open(int port){
 }
 int socket_post1(char *post,char *buf)
 {
-	int out=0;
 	//printf("f=%f\n",valor);
-	uint8_t ibuf[300],j;
+	uint8_t ibuf[900];
 	char obuf[1000],ibuf1[500];
-  	char ip[20];
-	int sock, numbytes,i;
-	struct sockaddr_in *seu_endereco;
+	int sock,i;
 	//printf("teste1\r\n");
 	if((sock=socket_open(80))==0){
 		printf("open error\r\n");
@@ -420,7 +224,7 @@ int socket_post1(char *post,char *buf)
 		return 0;
 	}
 	//printf("f=%f\n",_val);
-	sprintf(obuf,	"POST /ssa/teste/teste.php  HTTP/1.0\r\n"
+	sprintf(obuf,	"POST /ssa/scripts/gate_xbee.php  HTTP/1.0\r\n"
 					"Host: lronetto.com\r\n"
 					"Content-Type: application/x-www-form-urlencoded\r\n"
 					"Content-Length: %d \r\n\r\n"
@@ -437,7 +241,7 @@ int socket_post1(char *post,char *buf)
 		close(sock);
 		return 0;
 	}
-
+	printf("teste\n");
 	memset(ibuf,0,sizeof(ibuf));
 	
 
@@ -453,227 +257,56 @@ int socket_post1(char *post,char *buf)
 		close(sock);
 		return 0;
 	}
-
+	printf("teste1\n");
 	while(tmpres>0){
 		strcat(ibuf1,ibuf);
 		//printf(ibuf);
 		memset(ibuf, '\0', sizeof(ibuf));
 		tmpres=recv(sock, ibuf, BUFSIZ, 0);
 		}
+	printf("teste2\n");
 	htmlcontent=strstr(ibuf1,"\r\n\r\n")+8;
+	printf("teste3\n");
 	if(htmlcontent==NULL){
 		//free(seu_endereco);
 		close(sock);
 		return 0;
 	}
 	sprintf(buf,htmlcontent);
-
+	printf("teste4\n");
+	printf("%s\n",htmlcontent);
 
 	//free(seu_endereco);
  	close(sock);
 	return 1;
 
 }
-int socket_postSSL(char *post,char *buf)
-{
-	 int sd;
-    struct hostent *host;
-    struct sockaddr_in addr;
-    BIO *outbio = NULL;
-    SSL_METHOD *method;
-    SSL_CTX *ctx;
-    SSL *ssl;
-    char *req;
-    int req_len;
-    char hostname[] ="lronetto.com";
-    char certs[] = "/etc/ssl/certs/ca-certificates.crt";
-    int port = 443;
-    int bytes,rb;
-char *pointer;
-	uint8_t obuf[200];
-	uint8_t ibuf1[200];
-	uint8_t ibuf[200];
-    // added this to test
-       char           dest_url[] = "https://lronetto.com";
-       BIO              *certbio = NULL;
-       X509                *cert = NULL;
-       X509_NAME       *certname = NULL;
-    BIO *outbio2 = NULL;
-
-
-
-    //OpenSSL_add_all_algorithms();
-    //ERR_load_BIO_strings();
-   // ERR_load_crypto_strings();
-   // SSL_load_error_strings();
-
-    outbio    = BIO_new(BIO_s_file());
-    outbio    = BIO_new_fp(stdout, BIO_NOCLOSE);
-      
-    if(SSL_library_init() < 0){
-        printf( "Could not initialize the OpenSSL library !\n");
-        fflush(stdout);
-        //SSL_free(ssl);
-		//close(sd);
-		//SSL_CTX_free(ctx);
-    	return 0;
-	}
-
-    method = SSLv23_client_method();
-    ctx = SSL_CTX_new(method);
-
-    if(! SSL_CTX_load_verify_locations(ctx,NULL, "/home/ssa/ssl/"))
-    {
-        printf("error load\r\n");
-        fflush(stdout);
-    }
-
-    SSL_CTX_set_options(ctx, SSL_MODE_AUTO_RETRY);
-
-    if((sd=socket_open(443))==0){
-    	printf("open error\r\n");
-    	fflush(stdout);
-    	SSL_CTX_free(ctx);
-    	return 0;
-    	}
-
-    if((ssl = SSL_new(ctx))==NULL){
-    	printf("SSL_new error\r\n");
-    	fflush(stdout);
-    	SSL_CTX_free(ctx);
-    	close(sd);
-    	return 0;
-    	}
-    if(!SSL_set_fd(ssl, sd)){
-    	printf("SSL_set_fd error\r\n");
-    	fflush(stdout);
-    	SSL_free(ssl);
-    	SSL_CTX_free(ctx);
-    	close(sd);
-    	return 0;
-    	}
-    
-
-   if( SSL_connect(ssl)<1){
-	   printf("SSL_connect error\r\n");
-	   fflush(stdout);
-	   SSL_free(ssl);
-	   SSL_CTX_free(ctx);
-	   close(sd);
-	   return 0;
-   	   }
-	 sprintf(obuf,   "POST /ssa/teste/teste.php  HTTP/1.0\r\n"
-                                        "Host: lronetto.com\r\n"
-                                        "Content-Type: application/x-www-form-urlencoded\r\n"
-                                        "Content-Length: %d \r\n\r\n"
-                                        "%s\r\n",
-                                        strlen(post),post);
-    if((rb=SSL_write(ssl, obuf, sizeof(obuf)))<1){
-    	printf("SSL_write error\r\n");
-    	fflush(stdout);
-    	SSL_free(ssl);
-    	SSL_CTX_free(ctx);
-    	close(sd);
-    	return 0;
-    	}
-
-   // printf("teste7\r\n");
-
-    memset(ibuf, '\0', sizeof(ibuf));
- 	memset(ibuf1, '\0', sizeof(ibuf1));
-    long error;
-    if((bytes = SSL_read(ssl, ibuf, sizeof(ibuf)))<1){
-    	error=SSL_get_error(ssl,bytes);
-    	printf("SSL_read error %d  %d %s\r\n",error,bytes,ERR_error_string(error, NULL));
-    	fflush(stdout);
-    	//printf(ibuf);
-    	switch(error){
-    		case SSL_ERROR_NONE:
-    			printf("SSL_ERROR_NONE\r\n");
-    			break;
-    		case SSL_ERROR_WANT_CONNECT:
-    			printf("SSL_ERROR_WANT_CONNECT\r\n");
-    			break;
-    		case SSL_ERROR_WANT_ACCEPT:
-    			printf("SSL_ERROR_WANT_ACCEPT\r\n");
-    			break;
-    		case SSL_ERROR_WANT_X509_LOOKUP:
-    			printf("SSL_ERROR_WANT_X509_LOOKUP\r\n");
-    			break;
-    		//case SSL_ERROR_WANT_ASYNC:
-    		//	printf("SSL_ERROR_WANT_ASYNC\r\n");
-    		//	break;
-    		//case SSL_ERROR_WANT_ASYNC_JOB:
-    		//	printf("SSL_ERROR_WANT_ASYNC_JOB\r\n");
-    		//	break;
-    		case SSL_ERROR_SYSCALL:
-    			printf("SSL_ERROR_SYSCALL\r\n");
-    			break;
-    		case SSL_ERROR_SSL:
-    			printf("SSL_ERROR_SSL\r\n");
-    			break;
-    		case SSL_ERROR_ZERO_RETURN:
-    			printf("SSL_ERROR_ZERO_RETURN\r\n");
-    			break;
-    	}
-
-    	SSL_shutdown (ssl);
-    	SSL_free(ssl);
-    	SSL_CTX_free(ctx);
-    	close(sd);
-    	return 0;
-		}
-    while(bytes > 0){
-        //write(STDOUT_FILENO, bufi, bytes);
-    	strcat(ibuf1,ibuf);
-    	memset(ibuf, '\0', sizeof(ibuf));
-        bytes = SSL_read(ssl, ibuf, sizeof(ibuf));
-    	}
-    pointer=strstr(ibuf1,"\r\n\r\n")+8;
-    if(pointer==NULL){
-		SSL_free(ssl);
-		SSL_CTX_free(ctx);
-		close(sd);
-		return 0;
-    	}
-	sprintf(buf,pointer);
-	free(pointer);
-	//SSL_shutdown (ssl);
-	SSL_free(ssl);
-	SSL_CTX_free(ctx);
-	close(sd);
-
-
-return 1;
-}
 int socket_SSL1(char *post,char *buf,char *addr){
 	BIO * bio;
 	SSL * ssl;
 	SSL_CTX * ctx;
-	char r[1024];
+	char bufaux[100];
+	char r[1024],post_perca[300];
 	char ibuf1[1024];
 	int bytes;
 	char *pointer;
 	char obuf[1000];
 	int i=0,j;
-	if(total>=1)
+	int flag_total=0;
+	if(total>=1){
 		printf("total=%d total_certo=%d %2.2f\r\n",total,total_certo,(1.0-((float)total_certo/(float)total))*100.0);
-	if(total==100){
-		//sprintf(r,"act=perca&mac=%s&perca=%3.2f",addr,(1.0-((float)total_certo/(float)total))*100.0);
-
+		fflush(stdout);
+		}
+	if(total==50){
+		sprintf(post_perca,"act=perca&mac=%s&perca=%2.2f",addr,(1.0-((float)total_certo/(float)total))*100.0);
+		flag_total=1;
 		printf("perda=%3.2f\r\n",(1.0-((float)total_certo/(float)total))*100.0);
+		fflush(stdout);
 		total=0;
 		total_certo=0;
-		printf("buf=%s\r\n",r);
-		//socket_post1(r,obuf);
-		printf("bufperca='%s'",obuf);
 	}
 	total++;
-<<<<<<< HEAD
-	 SSL_library_init();
-=======
 	SSL_library_init();
->>>>>>> 0830da7c684f0a126d6a0466bce2ac8e03ed8520
 
 	ERR_load_BIO_strings();
 
@@ -685,16 +318,14 @@ int socket_SSL1(char *post,char *buf,char *addr){
 	ctx = SSL_CTX_new(SSLv23_client_method());
 	/* Load the trust store */
 	//printf("teste1\r\n");
-<<<<<<< HEAD
 	if(! SSL_CTX_load_verify_locations(ctx, "/home/TrustStore.pem", NULL))
-=======
-	if(! SSL_CTX_load_verify_locations(ctx, "/home/ssa/main/TrustStore.pem", NULL))
->>>>>>> 0830da7c684f0a126d6a0466bce2ac8e03ed8520
 	{
 		//printf("teste2\r\n");
 		fprintf(stderr, "Error loading trust store\n");
 		ERR_print_errors_fp(stderr);
 		SSL_CTX_free(ctx);
+		ERR_free_strings();
+		EVP_cleanup();
 		return 0;
 	}
 	//printf("teste2\r\n");
@@ -715,6 +346,8 @@ int socket_SSL1(char *post,char *buf,char *addr){
 		ERR_print_errors_fp(stderr);
 		BIO_free_all(bio);
 		SSL_CTX_free(ctx);
+		ERR_free_strings();
+		EVP_cleanup();
 		return 0;
 
 	}
@@ -729,19 +362,27 @@ int socket_SSL1(char *post,char *buf,char *addr){
 
 		BIO_free_all(bio);
 		SSL_CTX_free(ctx);
+		ERR_free_strings();
+		EVP_cleanup();
 		return 0;
 	}
 
 	//printf("teste8\r\n");
 
+	printf("post=\"%s\"\n",post);
+	fflush(stdout);
+
 	memset(obuf,0,sizeof(obuf));
 	sprintf(obuf,   "POST /ssa/scripts/gate_xbee.php  HTTP/1.0\r\n"
-	                                        "Host: lronetto.com\r\n"
-	                                        "Content-Type: application/x-www-form-urlencoded\r\n"
-	                                        "Content-Length: %d \r\n"
-	                                        "Connection: Close\r\n\r\n"
-	                                        "%s\r\n",
-	                                        strlen(post),post);
+					"Host: lronetto.com\r\n"
+					"Content-Type: application/x-www-form-urlencoded\r\n"
+					"Content-Length: %d \r\n"
+					"Connection: Close\r\n\r\n"
+					"%s\r\n",
+					strlen(post),post);
+
+	//printf("obuf=\"%s\"",obuf);
+	//fflush(stdout);
 
 	BIO_write(bio, obuf, strlen(obuf));
 	memset(ibuf1,0,sizeof(ibuf1));
@@ -754,34 +395,37 @@ int socket_SSL1(char *post,char *buf,char *addr){
 
 		bytes = BIO_read(bio, r, BUFSIZ);
 		}
-	//printf("teste10 len=%d\r\n",strlen(ibuf1));
+	//printf("socket1 len=%d\r\n",strlen(ibuf1));
+	//fflush(stdout);
+	printf("socket1\n");
 	fflush(stdout);
 	BIO_free_all(bio);
 	SSL_CTX_free(ctx);
+	BIO_ssl_shutdown(bio);
+	ERR_free_strings();
+	EVP_cleanup();
 	 if(strlen(ibuf1)==0){
                 printf("slrlen=0\r\n");
+                fflush(stdout);
                 return 0;
                 }
 	//printf("teste11\r\n");
-	fflush(stdout);
-	//printf("ibuf1=\"%s\"",ibuf1);
+	//fflush(stdout);
+	if(total==2){
+		//printf("ibuf1=\"%s\"",ibuf1);
+		//fflush(stdout);
+	}
 	//fflush(stdout);
 	int len=strlen(ibuf1);
 	i=0;
 	while(!(ibuf1[i]=='$' & ibuf1[i+1]=='$') & i<(len)) i++;
 	if(i>=(len)){
 		printf("erro n t $$\r\n");
+		fflush(stdout);
 		return 0;
 	}
-
-	//printf("pointer=\"%s\"",pointer);
-	//fflush(stdout);
-	//printf("teste13\r\n");
-	//fflush(stdout);
-	//i=0;
 	memset(obuf,0,sizeof(obuf));
 	j=0;
-	//i=0;
 	i++;
 	while(ibuf1[i]!='&' && i<len){
 		obuf[j]=ibuf1[i];
@@ -790,15 +434,21 @@ int socket_SSL1(char *post,char *buf,char *addr){
 	}
 	if(i>=len){
 		printf("sem &\r\n");
+		fflush(stdout);
 		return 0;
 		}
-	//printf("teste14\r\n");
-	//fflush(stdout);
-	//printf("obuf=\"%s\"",obuf);
 	sprintf(buf,obuf);
 
 	total_certo++;
 
+	if(flag_total){
+		//printf("buf=%s\r\n",r);
+		//fflush(stdout);
+		socket_SSL1(post_perca,&bufaux,addr);
+		flag_total=0;
+	}
+	printf("socket2\n");
+	fflush(stdout);
 	 return 1;
 
 

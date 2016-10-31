@@ -11,98 +11,98 @@
 #include <errno.h>
 #include <sys/time.h>
 #include <string.h>
-#include <openssl/rand.h>
-#include <openssl/ssl.h>
-#include <openssl/err.h>
 
-//#include <mysql/mysql.h>
+
 #include "serial.h"
 #include "xbee.h"
 #include "cod.h"
 #include "ssa.h"
-//#include "mysql.h"
+#include "socket.h"
+
 #define START 	1
 #define END		2
 
-//#define	socket_post1(a,b) socket_postSSL(a,b)
-
-extern void ping_handler();
-
-uint8_t Addr_broadcast[]={0,0,0,0,0,0,0xFF,0xFF};
-//##define PASS "822528"
-//##define BASE "ssa"
-//#MYSQL conexao;
-//#MYSQL_RES *resp,*resp1;
-//#MYSQL_ROW linhas,linhas1;
-//#MYSQL_FIELD *campos;
-int ser_receb(void);
-void xbee_process(void);
-long timeout(struct timeval start);
-void discover(void);
-void atu_process(void);
-
-void signal_handler_IO (int status);
-
-char buf_rx[100];
-uint8_t payload[100];
-int fd,flag_s,flag_c;
-floatbyte_T float_aux;
-uint32_byte_T uint32_aux,uint32_aux1;
-//atudisp_T disp;
+//estrutura de controle e auxilio para o XBEE
 xbee_t xbee;
+
+#define	socket_post1(a,b) socket_SSL1(a,b,xbee.myaddr)
+
+
+//EndereÃ§o para broadcast da rede XBEE
+uint8_t Addr_broadcast[]={0,0,0,0,0,0,0xFF,0xFF};
+
+//processa pacote vindo da serial do XBEE
+int ser_receb(void);
+//processa os comandos vindo do XBEE
+void xbee_process(void);
+//verifica o timeout
+long timeout(struct timeval start);
+//Envia comando de discover do XBEE (ND) e inicia a contagem do tempo para o timeout
+void discover(void);
+//verifica de acordo com a resposta do POST de existe alguma coisa para atualizar
+void atu_process(void);
+//indica dados na serial
+int flag_ser=0;
+void signal_handler_IO (int status)
+{
+flag_ser=1;
+}
+//buffer da serial
+char buf_rx[100];
+//pacote do XBEE
+uint8_t payload[100];
+//arquivo da serial
+int fd;
+
+//union para facilitar a transferencia de float para 4 bytes e vice versa
 floatbyte_T floataux;
+//variaveis de controle do processo da serial
 int status1=0,res,ind=0,sum=0,tam;
+//flag que indica que existe pacote do XBEE a ser processado
 int flag_process=0;
+//buffers de uso geral
 uint8_t buf[200];
 uint8_t buf1[200];
 char buf2[10][200];
-void ser_process();
-int flag_ser=0;
 uint8_t addraux[8];
 
-#define	socket_post1(a,b) socket_SSL1(a,b,xbee.myaddr)
+void ser_process();
+
+
+
+
 int main(int argc, char **argv)
 {
-	struct timeval start, end,start1, end1;
-	long mtime=0,mtime1, seconds=0, useconds=0;
-	char c;
-	int ent,est,i,j;
-	float ola;
-	char myaddr[20];
-	int disp_count=0,disp_aux,flag_status[4],flag;
+	struct timeval start,start1;
 
+	int i;
+	char myaddr[20];
 	fd=serial_init(&signal_handler_IO);
-	int type,var;
+	//int type,var;
 	xbee.flag_myaddr=1;
 	xbee_cmdAT(fd,&xbee,(uint8_t*)"SH");
 	//usleep(1000000);
 	//xbee_cmdAT(fd,&xbee,(uint8_t*)"SH");
-
-	//printf("ola");
-	//fflush(stdout);
-
-	//SSL_load_error_strings();
-	//ERR_load_BIO_strings();
-	//OpenSSL_add_all_algorithms();
-
 
 	gettimeofday(&start, NULL);
 	gettimeofday(&start1, NULL);
 	while(1){
 		ser_process();
 		xbee_process();
+		//recebe o endereco do XBEE mestre
 		if(xbee.flag_myaddr==3){
 
 
 			memset(myaddr,0,sizeof(myaddr));
-
+			//converte vetor do endereço para string
 			xbee_addrstr(xbee.myaddres,xbee.myaddr);
 			//strcpy(xbee.myaddr,myaddr);
 
-			sprintf(buf,"act=init&type=5&mac=%s",xbee.myaddr);
+			sprintf((char*)buf,"act=init&type=5&mac=%s",(char*)xbee.myaddr);
 
-			printf("buf=%s\r\n",buf);
-			if(socket_post1(buf,&buf1)){
+			//printf("buf=%s\r\n",buf);
+			//fflush(stdout);
+			if(socket_post1((char*)buf,(char*)&buf1)){
 				printf("buf1=%s\r\n",buf1);
                 fflush(stdout);
 				}
@@ -114,18 +114,18 @@ int main(int argc, char **argv)
 			discover();
 			}
 		if((timeout(xbee.disc.start)>150000) & (xbee.disc.flag)){
-			sprintf(buf,"act=discover&mac=%s&qtd=%d",xbee.myaddr,xbee.disc.qtd);
+			sprintf((char*)buf,"act=discover&mac=%s&qtd=%d",(char*)xbee.myaddr,xbee.disc.qtd);
 			for(i=0;i<xbee.disc.qtd;i++){
 
-				sprintf(buf2[1],"&mac%d=%02X%02X%02X%02X%02X%02X%02X%02X"
+				sprintf((char*)buf2[1],"&mac%d=%02X%02X%02X%02X%02X%02X%02X%02X"
 			,i,xbee.disc.addr[i][0],xbee.disc.addr[i][1],xbee.disc.addr[i][2],xbee.disc.addr[i][3],
 			xbee.disc.addr[i][4],xbee.disc.addr[i][5],xbee.disc.addr[i][6],xbee.disc.addr[i][7]);
-				strcat(buf,buf2[1]);
+				strcat((char*)buf,(char*)buf2[1]);
 
 				}
-			printf("buf=%s \r\n",buf);
-			fflush(stdout);
-			if(socket_post1(buf,&buf1)){
+			//printf("buf=%s \r\n",(char*)buf);
+			//fflush(stdout);
+			if(socket_post1((char*)buf,(char*)&buf1)){
 				printf("buf1=%s\r\n",buf1);
 				fflush(stdout);
 				}
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 					
 	}
 long timeout(struct timeval start){
-	long mtime=0, seconds=0, useconds=0,timeout;
+	long mtime=0, seconds=0, useconds=0;
 	struct timeval end;
 	gettimeofday(&end, NULL);
 	seconds  = end.tv_sec  - start.tv_sec;
@@ -154,14 +154,15 @@ long timeout(struct timeval start){
 	return mtime;
 }
 void discover(void){
-	xbee_cmdAT(fd,&xbee,"ND");
+	xbee_cmdAT(fd,&xbee,(uint8_t*)"ND");
 	xbee.disc.qtd=0;
 	gettimeofday(&(xbee.disc.start), NULL);
 	//discover.discover_tim_start=TIM2->CNT;
 	xbee.disc.flag=1;
 }
+
 void xbee_process(void){
-	int i,j,k;
+	int i,j;
 	if(flag_process){
 		xbee_reciver(&xbee);
 		/*printf("packet rec: ");
@@ -178,15 +179,15 @@ void xbee_process(void){
 			case XBEE_CMDATRR:
 				if((xbee.buf[15]=='D') & (xbee.buf[16]=='B')){
 					memset(buf,0,sizeof(buf));
-					sprintf(buf,"act=rssi&rssi=%d&mac=",xbee.buf[18]);
+					sprintf((char*)buf,"act=rssi&rssi=%d&mac=",xbee.buf[18]);
 					for(i=0;i<8;i++){
 						memset(buf2[0],0,sizeof(buf2[0]));
 						sprintf(buf2[0],"%02X",xbee.buf[5+i]);
-						strcat(buf,buf2[0]);
+						strcat((char*)buf,(char*)buf2[0]);
 						}
-					printf("buf=%s\r\n",buf);
-					fflush(stdout);
-					if(socket_post1(buf,&buf1)){
+					//printf("buf=%s\r\n",(char*)buf);
+					//fflush(stdout);
+					if(socket_post1((char*)buf,(char*)&buf1)){
 						printf("buf1=%s\r\n",buf1);
 						fflush(stdout);
 						atu_process();
@@ -194,6 +195,7 @@ void xbee_process(void){
 					}
 				break;
 			case XBEE_CMDAT:
+				//printf("CMDAT\n");
 				if(xbee.flag_myaddr==1){
 					//printf("glag=1\r\n");
 					for(i=0;i<4;i++)
@@ -214,7 +216,7 @@ void xbee_process(void){
 						addraux[i]=xbee.buf[10+i];
 						}
 					//rssi
-					xbee_cmdATR(fd,&xbee,"DB",addraux);
+					xbee_cmdATR(fd,&xbee,(uint8_t*)"DB",addraux);
 					xbee.disc.qtd++;
 				}
 				break;
@@ -224,10 +226,10 @@ void xbee_process(void){
 					xbee_addrstr(xbee.source_Address,buf1);
 					//fflush(stdout);
 					//printf("buf1: %s\r\n",buf1);
-					sprintf(buf,"act=est&out=%d&est=%d&mac=%s",xbee.buf[XBEE_PAYLOAD_OFFSET+1],xbee.buf[XBEE_PAYLOAD_OFFSET+2],buf1);
-					printf("buf=%s\r\n",buf);
-					fflush(stdout);
-					if(socket_post1(buf,buf1)){
+					sprintf((char*)buf,"act=est&out=%d&est=%d&mac=%s",xbee.buf[XBEE_PAYLOAD_OFFSET+1],xbee.buf[XBEE_PAYLOAD_OFFSET+2],(char*)buf1);
+					//printf("buf=%s\r\n",buf);
+					//fflush(stdout);
+					if(socket_post1((char*)buf,(char*)buf1)){
 						printf("buf1=%s\r\n",buf1);
 						fflush(stdout);
 					}
@@ -252,8 +254,8 @@ void xbee_process(void){
 						printf("rec analog\r\n");
 						fflush(stdout);
 						memset(buf,0,sizeof(buf));
-						xbee_addrstr(xbee.source_Address,buf2[0]);
-						sprintf(buf,"act=var1&disptype=3&mac=%s&qtd=%d",buf2[0],xbee.buf[XBEE_PAYLOAD_OFFSET+1]);
+						xbee_addrstr(xbee.source_Address,(uint8_t*)buf2[0]);
+						sprintf((char*)buf,"act=var1&disptype=3&mac=%s&qtd=%d",buf2[0],xbee.buf[XBEE_PAYLOAD_OFFSET+1]);
 
 						for(i=0;i<xbee.buf[XBEE_PAYLOAD_OFFSET+1];i++){
 							for(j=0;j<4;j++)
@@ -269,14 +271,14 @@ void xbee_process(void){
 									floataux.val,
 									i,
 									xbee.buf[XBEE_PAYLOAD_OFFSET+5+i*8]);
-							strcat(buf,buf2[0]);
+							strcat((char*)buf,(char*)buf2[0]);
 
 							}
-						printf("buf=%s\r\n",buf);
-						fflush(stdout);
-						if(socket_post1(buf,buf1)){
-							printf("buf1=%s\r\n",buf1);
-							fflush(stdout);
+						//printf("buf=%s\r\n",buf);
+						//fflush(stdout);
+						if(socket_post1((char*)buf,(char*)buf1)){
+							//printf("buf1=%s\r\n",buf1);
+							//fflush(stdout);
 							atu_process();
 
 							}
@@ -288,13 +290,105 @@ void xbee_process(void){
 		flag_process=0;
 		}
 }
-void signal_handler_IO (int status)
-{
-flag_ser=1;
+
+
+//processa resposta da funï¿½ï¿½o atu do servidor
+void atu_process(void){
+	int i,j,k;
+	memset(buf,0,sizeof(buf));
+
+	i=0;
+	while((buf1[i]<'0') | (buf1[i]>'9')) i++;
+	j=i;
+	i=0;
+	//printf("teste11\r\n");
+	while(buf1[i+j]!=';'){
+		buf[i]=buf1[i+j];
+		i++;
+		}
+	int qtd=atoi((char*)buf);
+	j+=i+1;
+	//printf("buf1[i]=%c buf1[i+1]=%c\r\n",buf[i],buf[i+1]);
+	if(qtd>0){
+		memset(buf,0,sizeof(buf));
+		i=0;
+		while(buf1[i+j]!=';'){
+			buf[i]=buf1[i+j];
+			i++;
+			}
+		//printf("teste12\r\n");
+		//printf("caux=%s \r\n",buf);
+		memset(addraux,0,sizeof(addraux));
+		sscanf((char*)buf,"%02X%02X%02X%02X%02X%02X%02X%02X",
+				(unsigned int*)&addraux[0],(unsigned int*)&addraux[1],
+				(unsigned int*)&addraux[2],(unsigned int*)&addraux[3],
+				(unsigned int*)&addraux[4],(unsigned int*)&addraux[5],
+				(unsigned int*)&addraux[6],(unsigned int*)&addraux[7]);
+		//printf("teste13 qtd=%d\r\n",qtd);
+		//xbee_addrstr(addraux,buf2[0]);
+		//printf("addraux=%s\r\n",buf2[0]);
+		/*printf("addr: ") ;
+		for(i=0;i<8;i++)
+			printf("%02X ",addraux[i]);
+		printf("\r\n");*/
+		i=0;
+		while(buf1[i+j]!=';') i++;
+		j+=i+1;
+		memset(payload,0,sizeof(payload));
+		payload[0]=SSA_F_ANALOG_TEMPO;
+		payload[1]=qtd;
+		//printf("buf1[i]=%c buf1[i+1]=%c buf1[i+2]=%c buf1[j-1]=%c\r\n",buf[j],buf[j+1],buf[j+2],j,buf[j-1]);
+		for(k=0;k<qtd;k++){
+
+			//variavel
+			memset(buf,0,sizeof(buf));
+			i=0;
+			while(buf1[i+j]!=';'){
+				buf[i]=buf1[i+j];
+				i++;
+				}
+			//printf("teste14\r\n");
+			//printf("var=%s\r\n",buf);
+			payload[2+k*3]=atoi((char*)buf);
+			//tempo
+			memset(buf,0,sizeof(buf));
+			//printf("teste15\r\n");
+			j+=i+1;
+			//printf("buf1[i]=%c buf1[i+1]=%c buf1[i+2]=%c buf1[%d]=%c\r\n",buf1[i],buf1[i+1],buf1[i+2],j,buf1[j]);
+			i=0;
+			while(buf1[i+j]!=';'){
+				buf[i]=buf1[i+j];
+				i++;
+				}
+			payload[3+k*3]=atoi((char*)buf);
+			//printf("tempo=%s\r\n",buf);
+			//medias
+			memset(buf,0,sizeof(buf));
+			//printf("teste15\r\n");
+			j+=i+1;
+			//printf("buf1[i]=%c buf1[i+1]=%c buf1[i+2]=%c buf1[%d]=%c\r\n",buf1[i],buf1[i+1],buf1[i+2],j,buf1[j]);
+			i=0;
+			while(buf1[i+j]!=';'){
+				buf[i]=buf1[i+j];
+				i++;
+				}
+			payload[4+k*3]=atoi((char*)buf);
+			//printf("media=%s\r\n",buf);
+			j+=i+1;
+			}
+		/*printf("out: ");
+		for(i=0;i<2+3*qtd;i++)
+			printf("%02X ",payload[i]);
+		printf("\r\n");*/
+
+		xbee_SendData(fd,&xbee,addraux,payload,2+3*qtd);
+		//xbee_cmdATR(fd,&xbee,"DB",xbee.source_Address);
+		}
 }
+
 void ser_process(){
 	if(flag_ser){
-	int i,j;
+	int j;
 	res = read(fd,buf,100);
 	if (res > 0){
 		//printf("\r\n");
@@ -331,93 +425,4 @@ void ser_process(){
 	flag_ser=0;
 	}
 
-}
-//processa resposta da função atu do servidor
-void atu_process(void){
-	int i,j,k;
-	memset(buf,0,sizeof(buf));
-
-	i=0;
-	while(buf1[i]<'0' | buf1[i]>'9') i++;
-	j=i;
-	i=0;
-	//printf("teste11\r\n");
-	while(buf1[i+j]!=';'){
-		buf[i]=buf1[i+j];
-		i++;
-		}
-	int qtd=atoi(buf);
-	j+=i+1;
-	//printf("buf1[i]=%c buf1[i+1]=%c\r\n",buf[i],buf[i+1]);
-	if(qtd>0){
-		memset(buf,0,sizeof(buf));
-		i=0;
-		while(buf1[i+j]!=';'){
-			buf[i]=buf1[i+j];
-			i++;
-			}
-		//printf("teste12\r\n");
-		//printf("caux=%s \r\n",buf);
-		memset(addraux,0,sizeof(addraux));
-		sscanf(buf,"%02X%02X%02X%02X%02X%02X%02X%02X",&addraux[0],&addraux[1],&addraux[2],&addraux[3],&addraux[4],&addraux[5],&addraux[6],&addraux[7]);
-		//printf("teste13 qtd=%d\r\n",qtd);
-		//xbee_addrstr(addraux,buf2[0]);
-		//printf("addraux=%s\r\n",buf2[0]);
-		/*printf("addr: ") ;
-		for(i=0;i<8;i++)
-			printf("%02X ",addraux[i]);
-		printf("\r\n");*/
-		i=0;
-		while(buf1[i+j]!=';') i++;
-		j+=i+1;
-		memset(payload,0,sizeof(payload));
-		payload[0]=SSA_F_ANALOG_TEMPO;
-		payload[1]=qtd;
-		//printf("buf1[i]=%c buf1[i+1]=%c buf1[i+2]=%c buf1[j-1]=%c\r\n",buf[j],buf[j+1],buf[j+2],j,buf[j-1]);
-		for(k=0;k<qtd;k++){
-
-			//variavel
-			memset(buf,0,sizeof(buf));
-			i=0;
-			while(buf1[i+j]!=';'){
-				buf[i]=buf1[i+j];
-				i++;
-				}
-			//printf("teste14\r\n");
-			//printf("var=%s\r\n",buf);
-			payload[2+k*3]=atoi(buf);
-			//tempo
-			memset(buf,0,sizeof(buf));
-			//printf("teste15\r\n");
-			j+=i+1;
-			//printf("buf1[i]=%c buf1[i+1]=%c buf1[i+2]=%c buf1[%d]=%c\r\n",buf1[i],buf1[i+1],buf1[i+2],j,buf1[j]);
-			i=0;
-			while(buf1[i+j]!=';'){
-				buf[i]=buf1[i+j];
-				i++;
-				}
-			payload[3+k*3]=atoi(buf);
-			//printf("tempo=%s\r\n",buf);
-			//medias
-			memset(buf,0,sizeof(buf));
-			//printf("teste15\r\n");
-			j+=i+1;
-			//printf("buf1[i]=%c buf1[i+1]=%c buf1[i+2]=%c buf1[%d]=%c\r\n",buf1[i],buf1[i+1],buf1[i+2],j,buf1[j]);
-			i=0;
-			while(buf1[i+j]!=';'){
-				buf[i]=buf1[i+j];
-				i++;
-				}
-			payload[4+k*3]=atoi(buf);
-			//printf("media=%s\r\n",buf);
-			j+=i+1;
-			}
-		/*printf("out: ");
-		for(i=0;i<2+3*qtd;i++)
-			printf("%02X ",payload[i]);
-		printf("\r\n");*/
-
-		xbee_SendData(fd,&xbee,addraux,payload,2+3*qtd);
-		//xbee_cmdATR(fd,&xbee,"DB",xbee.source_Address);
-		}
 }

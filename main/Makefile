@@ -1,7 +1,7 @@
 TARGET = ssa_main
 LIBS = -lm -lssl -lcrypto
 CC = gcc
-CFLAGS = -g 
+CFLAGS = -g -O3 
 
 .PHONY: default all clean
 
