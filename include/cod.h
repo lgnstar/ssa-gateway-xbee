@@ -1,9 +1,7 @@
-#define	PORT_TCP	9500
-
 //tipo dispositivo
 #define TIPO_MODBUS     1
 #define TIPO_TCP        2
-#define TIPO_XBEE       3
+//#define TIPO_XBEE       3
 
 
 //tipo variavel
@@ -17,8 +15,8 @@
 #define FUNC_PEDVAR     1
 #define FUNC_RESPVAR    2
 #define FUNC_INI        3
-#define FUNC_INIOK	4
-#define FUNC_INIID	5
+#define FUNC_INIOK		4
+#define FUNC_INIID		5
 
 //pedido de variavel:
 //[func][var]

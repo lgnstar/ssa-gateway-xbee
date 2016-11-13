@@ -32,7 +32,7 @@ typedef union{
 }floatbyte_T;
 
 typedef struct{
-	int addr[10][8];
+	int addr[20][8];
 	int qtd;
 	struct timeval start;
 	int flag;
@@ -40,17 +40,17 @@ typedef struct{
 
 typedef struct{
 	uint8_t type;
+
 	//string addr
 	uint8_t myaddr[20];
 	//vetor addr
 	uint8_t myaddres[8];
-	uint8_t Address[8];
-	uint8_t addr_cord[8];
+
 	uint8_t source_Address[8];
 	uint8_t payload[200];
 	uint8_t buf[200];
-	uint8_t size,id,start;
-	uint8_t sizer;
+	uint8_t TamBuf;
+	uint8_t size;
 	uint8_t flag_myaddr;
 	discoverT disc;
 }xbee_t;

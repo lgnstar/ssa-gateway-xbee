@@ -20,7 +20,7 @@ void xbee_get_address(xbee_t *xbee){
 	int i;
 	for(i=0;i<8;i++){
 		xbee->source_Address[i]=xbee->buf[4+i];
-		//printf("i=%d %02X\r\n",i,xbee->buf[4+i]);
+
 		}
 }
 void xbee_packet_data(xbee_t *xbee,uint8_t *address,uint8_t *data, uint8_t size){
@@ -60,22 +60,13 @@ void xbee_packet(xbee_t *xbee,uint8_t type){
 }
 void xbee_Send(xbee_t *xbee,int fd){
 	int i;
-//	printf("ola %d\r\n",xbee->size);
 	write(fd,xbee->payload,xbee->size+4);
-//	sync();
-	//fflush(NULL);
-//	printf("ola1\r\n");
-
-	//fsync(fd);
-	//fflush(NULL);
-	//fflush(fd);
 }
 
 void xbee_SendData(int fd,xbee_t *xbee,uint8_t *address,uint8_t *data,uint8_t size){
-	//xbee_data(xbee,data,size);
 	xbee_packet_data(xbee,address,data,size);
-	//xbee_address(xbee,address);
 	xbee_packet(xbee,XBEE_TRANSMIT_REQUEST);
+
 	xbee_Send(xbee,fd);
 }
 
@@ -89,12 +80,10 @@ void xbee_cmdAT(int fd,xbee_t *xbee,uint8_t *str){
 }
 void xbee_cmdATR(int fd,xbee_t *xbee,uint8_t *str,uint8_t *addr){
 	int i;
-	//addr
-	//printf("str= %02X %02X\r\n addr= ",str[0],str[1]);
-	for(i=0;i<8;i++){
+	//endereco
+	for(i=0;i<8;i++)
 		xbee->payload[5+i]=addr[i];
-		//printf("%02X ",addr[i]);
-		}
+
 	//16bits addr
 	xbee->payload[13]=0xFF;
 	xbee->payload[14]=0xFE;
@@ -105,10 +94,7 @@ void xbee_cmdATR(int fd,xbee_t *xbee,uint8_t *str,uint8_t *addr){
 	xbee->payload[17]=str[1];
 	xbee->size=13;
 	xbee_packet(xbee,XBEE_CMDATRT);
-	//printf("\r\nsend: ");
-	//for(i=0;i<xbee->size+4;i++)
-		//printf("%02X ",xbee->payload[i]);
-	//printf("\r\n");
+
 	xbee_Send(xbee,fd);
 }
 void xbee_addrstr(uint8_t *addr,uint8_t *str){

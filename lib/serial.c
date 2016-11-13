@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include "serial.h"
 
-#define BAUDRATE B9600
+#define BAUDRATE B115200
 
 char devicename[80] = "/dev/ttyO4", ch;
 int fd;
