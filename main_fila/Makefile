@@ -1,7 +1,7 @@
 TARGET = ssa_main
 LIBS = -lm -lssl -lcrypto -lpthread
 CC = gcc
-CFLAGS = -g -O3 
+CFLAGS = -g
 
 .PHONY: default all clean
 
@@ -10,7 +10,7 @@ all: default
 
 INC=-I../include -I./
 
-SRC = ../lib/serial.c ../lib/xbee.c ../lib/ssl.c $(wildcard *.c)
+SRC = ../lib/serial.c ../lib/xbee.c ../lib/ssl.c ../lib/socket.c $(wildcard *.c)
 OBJ= $(SRC:.c=.o)
 
 %.o: %.c  

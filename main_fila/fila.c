@@ -92,3 +92,10 @@ void fila_Post(TTFila *fila,unsigned char *dado, int tam,int tent,int flag){
 	dat.flag_atu=flag;
 	fila_insert(fila,dat);
 }
+void fila_Atu(TTFila *fila,unsigned char *dado){
+	TipoFilaDado dat;
+	dat.dado=(unsigned char*)malloc(sizeof(unsigned char)*((strlen(dado))));
+	//memcpy(dat.dado,dado,tam);
+	dat.dado=dado;
+	fila_insert(fila,dat);
+}

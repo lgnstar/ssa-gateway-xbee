@@ -20,8 +20,8 @@
 
 #include "cod.h"
 
-int total=0;
-int total_certo=0;
+//int total=0;
+//int total_certo=0;
 #define BUF_MAX 4096
 
 #define PACKETSIZE  64
@@ -213,7 +213,7 @@ int socket_open(int port){
 }
 int socket_post1(char *post,char *buf)
 {
-	//printf("f=%f\n",valor);
+	//printf("post\n");
 	uint8_t ibuf[900];
 	char obuf[1000],ibuf1[500];
 	int sock,i;
@@ -241,7 +241,7 @@ int socket_post1(char *post,char *buf)
 		close(sock);
 		return 0;
 	}
-	printf("teste\n");
+	//printf("teste\n");
 	memset(ibuf,0,sizeof(ibuf));
 	
 
@@ -257,24 +257,24 @@ int socket_post1(char *post,char *buf)
 		close(sock);
 		return 0;
 	}
-	printf("teste1\n");
+	//printf("teste1\n");
 	while(tmpres>0){
 		strcat(ibuf1,ibuf);
 		//printf(ibuf);
 		memset(ibuf, '\0', sizeof(ibuf));
 		tmpres=recv(sock, ibuf, BUFSIZ, 0);
 		}
-	printf("teste2\n");
+	//printf("teste2\n");
 	htmlcontent=strstr(ibuf1,"\r\n\r\n")+8;
-	printf("teste3\n");
+	//printf("teste3\n");
 	if(htmlcontent==NULL){
 		//free(seu_endereco);
 		close(sock);
 		return 0;
 	}
 	sprintf(buf,htmlcontent);
-	printf("teste4\n");
-	printf("%s\n",htmlcontent);
+	//printf("teste4\n");
+	//printf("%s\n",htmlcontent);
 
 	//free(seu_endereco);
  	close(sock);

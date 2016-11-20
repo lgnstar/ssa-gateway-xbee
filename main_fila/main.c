@@ -7,17 +7,27 @@
 #include "xbee.h"
 #include "cod.h"
 #include "ssa.h"
-//#include "socket.h"
+#include "socket.h"
 #include "ssl.h"
+
+//#define DEBUG_INIT		0
+//#define DEBUG_SER_BUF		0
+#define DEBUG_XBEE_PACK
+#define DEBUG_POST
+
 
 #define START 	1
 #define END		2
 
-#define	socket_post1(a,b) socket_SSL(a,b,xbee.myaddr)
+///#define	socket_post1(a,b) socket_SSL(a,b,xbee.myaddr)
 void xbee_atu(uint8_t *buf1);
 
 TTFila FilaPacket;
 TTFila FilaPost;
+TTFila FilaAtu;
+pthread_mutex_t lock_Atu = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_Post = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t lock_Packet = PTHREAD_MUTEX_INITIALIZER;
 typedef struct{
 
 	}thread_args;
@@ -41,12 +51,8 @@ long timeout(struct timeval start){
 	mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
 	return mtime;
 }
-void signal_handler_IO (int status)
-{
-flag_ser=1;
-}
 int checksum(uint8_t *buf,int tam){
-	int i,sum=0;
+	int i=0,sum=0;
 	sum=0;
 	for(i=3;i<tam-1;i++){
 		sum+=buf[i];
@@ -57,15 +63,20 @@ int checksum(uint8_t *buf,int tam){
 	return 0;
 }
 int init(uint8_t *buf,int tam){
-	int i;
+	int i=0;
 	for(i=0;i<tam;i++){
 		if(buf[i]==0x7E) return i;
 	}
 	return -1;
 }
+
+void signal_handler_IO(int status)
+{
+flag_ser=1;
+}
 void *ThreadSerial(void *vargp){
-	int status=0,ind=0,ind1=0,sum=0,tam=0,i=0,res,flag_ini=0,j;
-	uint8_t bufin[100],bufaux[100];
+	int status=0,ind=0,ind1=0,sum=0,tam=0,i=0,res=0,flag_ini=0,j=0;
+	uint8_t bufin[200],bufaux[100],c[2];
 	fila_FVazia(&FilaPacket);
 	fd=serial_init(&signal_handler_IO);
 
@@ -74,136 +85,61 @@ void *ThreadSerial(void *vargp){
 
 	while(1){
 		if(flag_ser){
-			memset(bufin,0,sizeof(bufin));
-			res = read(fd,bufin,100);
-			/*printf("buf= ");
+#ifdef DEBUG_INIT
+			printf("ser\n");
+			fflush(stdout);
+#endif
+			res = read(fd,bufin,200);
+
+#ifdef DEBUG_SER_BUF
+			printf("buf= ");
 			fflush(stdout);
 			for(j=0;j<res;j++){
 				printf("%02X ",bufin[j]);
 				fflush(stdout);
 				}
 			printf("\n");
-			fflush(stdout);*/
-			if(flag_ini){
-				//printf("flag_ini\n");
-				if(ind<3){
-					//printf("flag_ini1\n");
-					i=0;
-					//while(i<res){
-					while(bufin[i]!=0x7E & i<res){
-						bufaux[ind]=bufin[i];
-						ind++;
-						i++;
-					}
-					tam=(bufaux[2] | bufaux[1]<<8)+4;
+			fflush(stdout);
+#endif
 
-					if(checksum(bufaux,tam)){
-						printf("ok1\n");
+			for(i=0;i<res;i++){
+				switch(status){
+					case 0:
+						//printf("status=0\n");
 						//fflush(stdout);
-						fila_Packet(&FilaPacket,bufaux,tam);
-						ind=2;
-						//i++;
-						if(i==res) flag_ini=0;
-						bufaux[0]=0x7e;
-						//printf("tam=%d res=%d ind=%d ind=%02X ind1=%02X ind2=%02X ini\n",tam,res,ind,bufin[i],bufin[i+1],bufin[i+2]);
-					}
-				}
-				if((res+ind)>tam){
-					//printf("flag_ini2\n");
-					//i=0;
-					//printf("tam=%d res=%d ind=%d ind=%02X ind1=%02X ind2=%02X %dini\n",tam,res,ind,bufin[i],bufin[i+1],bufin[i+2],i);
-					//ind--;
-					while(i<res){
-						while(bufin[i]!=0x7E & i<res){
-							bufaux[ind-1]=bufin[i];
-							ind++;
-							i++;
-							}
-						if(checksum(bufaux,tam)){
-							fila_Packet(&FilaPacket,bufaux,tam);
-							printf("ok2\n");
-							//fflush(stdout);
-							//printf("\n ok flag_ini i=%d res=%d\n",i,res);
-							//flag_ini=0;
-							if((i+3)<res){
-								ind=2;
-								bufin[i]=0;
-								bufaux[0]=0x7e;
-								tam=(bufin[i+2] | bufin[i+1]<<8)+4;
-
-								//printf("tam=%d res=%d ind=%d ind=%02X ind1=%02X ind2=%02X ini\n",tam,res,ind,bufin[i],bufin[i+1],bufin[i+2]);
-								i++;
-								}
-							else
-								flag_ini=0;
-							}
-						}
-
-
-					}
-				}
-			if(res>=1 & bufin[0]==0x7E){
-				//printf("res1\n");
-				ind=0;
-				tam=0;
-				if(res>2){
-					tam=(bufin[2] | bufin[1]<<8)+4;
-					}
-				else{
-					//printf("teste1\n");
-					for(i=0;i<res;i++)
-						bufaux[i]=bufin[i];
-					ind=res;
-					flag_ini=1;
-				}
-			//	printf("res=%d tam=%d\n",res,tam);
-				if(res==tam & checksum(bufin,tam)){
-					//printf("tam=res ok\n");
-					memset(xbee.buf,0,sizeof(xbee.buf));
-					for(i=0;i<=tam;i++)
-						xbee.buf[i]=bufin[i];
-					printf("ok3\n");
-					//fflush(stdout);
-					//printf("ok tam=%d\n",tam);
-					fila_Packet(&FilaPacket,bufin,tam);
-					}
-				if(res<tam){
-					//printf("res2\n");
-					flag_ini=1;
-					ind=0;
-					i=0;
-					while(bufin[ind+1]!=0x7E & ind<=res){
-						bufaux[ind]=bufin[ind];
-						ind++;
-						}
-					}
-				else
-				if(res>tam & res>2){
-					//printf("res3\n");
-					ind=1;
-					i=1;
-					bufaux[0]=0x7E;
-					while(ind<res){
-						while(bufin[ind]!=0x7E & ind<res){
-							bufaux[i]=bufin[ind];
-							ind++;
-							i++;
-							}
-						if(checksum(bufaux,tam)){
-							printf("\nok4\n");
-							//fflush(stdout);
-							ind++;
-							i=1;
+						if(bufin[i]==0x7e){
+							ind=0;
+							memset(bufaux,0,sizeof(bufaux));
 							bufaux[0]=0x7e;
+							status=1;
 							}
-						}
+						break;
+					case 1:
+						ind++;
+						bufaux[ind]=bufin[i];
+						if(ind==2) tam=(bufaux[2] | bufaux[1]<<8)+4;
+
+						else if(ind>2 & ind==(tam-1)){
+							//printf("teste1 ind=%d\n");
+							//fflush(stdout);
+							if(checksum(bufaux,tam)){
+								printf("checksum fila=%d\n",FilaPacket.tam);
+								fflush(stdout);
+								pthread_mutex_lock(&lock_Packet);
+								fila_Packet(&FilaPacket,bufaux,tam);
+								pthread_mutex_unlock(&lock_Packet);
+								status=0;
+								}
+							else status=0;
+							}
+						break;
 					}
 				}
 			flag_ser=0;
 			}
 		usleep(35);
 		}
-}
+	}
 void discover(void){
 	xbee_cmdAT(fd,&xbee,(uint8_t*)"ND");
 	xbee.disc.qtd=0;
@@ -220,14 +156,26 @@ void *ThreadXbee(void *vargp){
 	uint8_t payload[50];
 	struct timeval start;
 	fila_FVazia(&FilaPost);
+	fila_FVazia(&FilaAtu);
 	gettimeofday(&start, NULL);
 	while(1){
-		if(flag_atu){
-			xbee_atu(BufAtu);
-			flag_atu=0;
+		if(FilaAtu.tam>0){
+#ifdef DEBUG_INIT
+			printf("xbee atu\n");
+			fflush(stdout);
+#endif
+			pthread_mutex_lock(&lock_Atu);
+			fila_remove(&dado,&FilaAtu);
+			pthread_mutex_unlock(&lock_Atu);
+
+			xbee_atu(dado.dado);
 		}
 		//discover
 		if((timeout(xbee.disc.start)>150000) & (xbee.disc.flag)){
+#ifdef DEBUG_INIT
+			printf("xbee discovery\n");
+			fflush(stdout);
+#endif
 			//monta pacote para enviar todos os dispositivos presentes
 			sprintf((char*)buf,"act=discover&mac=%s&qtd=%d",(char*)xbee.myaddr,xbee.disc.qtd);
 			for(i=0;i<xbee.disc.qtd;i++){
@@ -244,17 +192,28 @@ void *ThreadXbee(void *vargp){
 
 				strcat((char*)buf,(char*)buf2[1]);
 				}
+			pthread_mutex_lock(&lock_Post);
 			fila_Post(&FilaPost,buf,strlen(buf),2,0);
+			pthread_mutex_unlock(&lock_Post);
+
 			gettimeofday(&xbee.disc.start, NULL);
 		}
 		//disp_atu
 
 		//verifica se existe pacote na fila da serial
 		if(FilaPacket.tam>0){
+#ifdef DEBUG_INIT
+			printf("xbee\n");
+			fflush(stdout);
+#endif
 			//remove da fila e copia para a estrutura do xbee
+			pthread_mutex_lock(&lock_Packet);
 			fila_remove(&dado,&FilaPacket);
+			pthread_mutex_unlock(&lock_Packet);
+
 			memcpy(xbee.buf,dado.dado,dado.tam);
 			xbee_reciver(&xbee);
+#ifdef DEBUG_XBEE_PACK
 			printf("packet rec: ");
 			fflush(stdout);
 			for(i=0;i<xbee.buf[2]+4;i++){
@@ -262,8 +221,8 @@ void *ThreadXbee(void *vargp){
 				fflush(stdout);
 				}
 			printf("\n");
-			//fflush(stdout);
-			//printf("xbeetam=%d\n",FilaPacket.tam);
+			fflush(stdout);
+#endif
 			switch(xbee.buf[3]){
 				case XBEE_STATUS_SUCESS:
 					break;
@@ -287,13 +246,15 @@ void *ThreadXbee(void *vargp){
 								xbee.buf[5+7]);
 
 						//printf("\nbuf=%s\n\n",buf);
+						pthread_mutex_lock(&lock_Post);
 						fila_Post(&FilaPost,buf,strlen(buf),2,1);
+						pthread_mutex_unlock(&lock_Post);
 						}
 					break;
 				case XBEE_CMDAT:
 					//recebe comando local
 
-					//primeiro estagio para obtenção do MAC
+					//primeiro estagio para obtenï¿½ï¿½o do MAC
 					if(xbee.flag_myaddr==1){
 						//zera o MAC
 						memset(xbee.myaddres,0,sizeof(xbee.myaddres));
@@ -303,7 +264,7 @@ void *ThreadXbee(void *vargp){
 						xbee.flag_myaddr=2;
 						xbee_cmdAT(fd,&xbee,(uint8_t*)"SL");
 						}
-					//segundo estagio para obtenção do MAC
+					//segundo estagio para obtenï¿½ï¿½o do MAC
 					else if(xbee.flag_myaddr==2){
 
 						for(i=0;i<4;i++)
@@ -314,7 +275,10 @@ void *ThreadXbee(void *vargp){
 
 						sprintf((char*)buf,"act=init&type=5&mac=%s",(char*)xbee.myaddr);
 						//printf("myaddr\n");
-						fila_Post(&FilaPost,buf,strlen(buf),5,1);
+						pthread_mutex_lock(&lock_Post);
+						fila_Post(&FilaPost,buf,strlen(buf),5,0);
+						pthread_mutex_unlock(&lock_Post);
+
 						discover();
 						}
 					//recebe o MAC dos dispositivo pelo discover
@@ -324,7 +288,7 @@ void *ThreadXbee(void *vargp){
 							addraux[i]=xbee.buf[10+i];
 							}
 						//usleep(100);
-						printf("discover\n");
+						//printf("discover\n");
 						//pede o rssi do dispositivo
 						xbee_cmdATR(fd,&xbee,(uint8_t*)"DB",addraux);
 						//incrementa a quantidade de dispositivos
@@ -334,9 +298,9 @@ void *ThreadXbee(void *vargp){
 				//recebe um pacote de dados
 				case XBEE_RECEIVE_PACKET:
 					switch(xbee.buf[XBEE_PAYLOAD_OFFSET]){
-						//recebe a alteração de sinal de saida
+						//recebe a alteraï¿½ï¿½o de sinal de saida
 						case SSA_F_OUTP:
-							//pega o endereço de onde veio
+							//pega o endereï¿½o de onde veio
 							xbee_addrstr(xbee.source_Address,buf1);
 
 							//monta o pacote para envio para o servidor
@@ -345,11 +309,13 @@ void *ThreadXbee(void *vargp){
 									xbee.buf[XBEE_PAYLOAD_OFFSET+2],
 									(char*)buf1);
 
+							pthread_mutex_lock(&lock_Post);
 							fila_Post(&FilaPost,buf,strlen(buf),2,0);
+							pthread_mutex_unlock(&lock_Post);
 
-						break;
+							break;
 
-						//envia o endereço do coordenador para o dispositivo
+						//envia o endereï¿½o do coordenador para o dispositivo
 						case SSA_F_CORD_ADDR:
 							//printf("intit disp\n");
 							payload[0]=SSA_F_CORD_ADDRP;
@@ -357,7 +323,7 @@ void *ThreadXbee(void *vargp){
 								payload[1+i]=xbee.myaddres[i];
 							xbee_SendData(fd,&xbee,xbee.source_Address,payload,9);
 
-						break;
+							break;
 						//recebe dado de entrada analogica
 						case SSA_F_ANALOG:
 
@@ -390,58 +356,83 @@ void *ThreadXbee(void *vargp){
 								strcat((char*)buf,(char*)buf2[0]);
 
 								}
-							fila_Post(&FilaPost,buf,strlen(buf),2,1);
+							pthread_mutex_lock(&lock_Post);
+							fila_Post(&FilaPost,buf,strlen(buf),2,0);
+							pthread_mutex_unlock(&lock_Post);
 
 							break;
 						}
 					break;
 				}
+#ifdef DEBUG_INIT
+			printf("xbeeend\n");
+			fflush(stdout);
+#endif
 			}
 		usleep(1000);
 		}
 	}
 void *ThreadPost(void *vargp){
-	TipoFilaDado dado;
+	TipoFilaDado dado,dado1;
 	int tent=0;
 	uint8_t buf[100],buf1[100];
 	int total=0,certo=0;
 	while(1){
 		if(FilaPost.tam>0){
+#ifdef DEBUG_INIT
+			printf("post\n");
+			fflush(stdout);
+#endif
+
 			tent=0;
+
+			pthread_mutex_lock(&lock_Post);
 			fila_remove(&dado,&FilaPost);
-			printf("Posttam=%d\n",FilaPost.tam);
+			pthread_mutex_unlock(&lock_Post);
+
+			//printf("Posttam=%d\n",FilaPost.tam);
 			//fflush(stdout);
-			//printf("post:\"%s\"\n",dado.dado);
+#ifdef DEBUG_POST
+			printf("post:\"%s\"\n",dado.dado);
+			fflush(stdout);
+#endif
 			total++;
 			while(!socket_post1((char*)dado.dado,(char*)&buf1) && tent<dado.PostTent){
 				tent++;
-				printf("error post %d\n",tent);
+				//printf("error post %d\n",tent);
 				//fflush(stdout);
 				usleep(500000);
 				}
 			if(tent<dado.PostTent){
 				certo++;
-				printf("buf1=%s\r\n",buf1);
-				//fflush(stdout);
-				if(dado.flag_atu){
-					memcpy(BufAtu,buf1,strlen(buf1));
-					flag_atu=1;
-					dado.flag_atu=0;
-					}
+				printf("buf1=%s\n",buf1);
 				fflush(stdout);
+				if(dado.flag_atu){
+					pthread_mutex_lock(&lock_Atu);
+					fila_Atu(&FilaAtu,buf1);
+					pthread_mutex_unlock(&lock_Atu);
+					}
+				//fflush(stdout);
+				//printf("buff\n");
 				}
 			if(total==50){
 				sprintf(buf,"act=perca&mac=%s&perca=%2.2f",xbee.myaddr,(1.0-((float)certo/(float)total))*100.0);
+				pthread_mutex_lock(&lock_Post);
 				fila_Post(&FilaPost,buf,strlen(buf),4,0);
+				pthread_mutex_unlock(&lock_Post);
 				total=0;
 				certo=0;
 				}
+#ifdef DEBUG_INIT
+			printf("postend\n");
+			fflush(stdout);
+#endif
 			}
-		usleep(10000);
+		usleep(100000);
 		}
 	}
 int main(){
-	int i;
+	int i,id;
 	thread_args args;
 	pthread_t IdSerial,IdXbee,IdPost;
 
@@ -455,25 +446,7 @@ int main(){
 	gettimeofday(&start, NULL);
 	gettimeofday(&start1, NULL);
 	while(1){
-		if(timeout(start)>500){
-			//printf("FilaPacket tam=%d tam1=%d\n",FilaPacket.tam,FilaPacket.p->dado.tam);
-			gettimeofday(&start, NULL);
-		}
-		//if(timeout(start1)>10000){
-		/*if(FilaPacket.tam>0){
-			if(fila_remove(&dado,&FilaPacket)){
-
-				printf("tamfila=%d tamdado=%d\n\n",FilaPacket.tam,dado.tam);
-
-				printf("packet: ");
-				for(i=0;i<dado.tam;i++){
-					printf("%02X ",dado.dado[i]);
-					}
-				printf("\n");
-				}
-			gettimeofday(&start1, NULL);
-			}*/
-		usleep(100000);
+		usleep(10000000);
 	}
 }
 void xbee_atu(uint8_t *buf1){

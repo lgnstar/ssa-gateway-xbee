@@ -26,3 +26,4 @@ void fila_insert(TTFila *fila,TipoFilaDado dado);
 int fila_remove(TipoFilaDado *dado,TTFila *fila);
 void fila_Packet(TTFila *fila,unsigned char *dado, int tam);
 void fila_Post(TTFila *fila,unsigned char *dado, int tam,int tent,int flag);
+void fila_Atu(TTFila *fila,unsigned char *dado);

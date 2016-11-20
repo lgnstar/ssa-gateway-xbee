@@ -42,7 +42,7 @@ int serial_init(void *func){
 		newtio.c_iflag = IGNPAR;
 		newtio.c_oflag = 0;
 		newtio.c_lflag = 0;
-		newtio.c_cc[VMIN]=1;
+		newtio.c_cc[VMIN]=0;
 		newtio.c_cc[VTIME]=0;
 		tcflush(fd, TCIFLUSH);
 		tcsetattr(fd,TCSANOW,&newtio);
