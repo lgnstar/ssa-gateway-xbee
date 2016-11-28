@@ -10,8 +10,8 @@
 #include "socket.h"
 #include "ssl.h"
 
-//#define DEBUG_INIT		0
-//#define DEBUG_SER_BUF		0
+#define DEBUG_INIT
+#define DEBUG_SER_BUF		0
 #define DEBUG_XBEE_PACK
 #define DEBUG_POST
 
@@ -213,6 +213,7 @@ void *ThreadXbee(void *vargp){
 
 			memcpy(xbee.buf,dado.dado,dado.tam);
 			xbee_reciver(&xbee);
+
 #ifdef DEBUG_XBEE_PACK
 			printf("packet rec: ");
 			fflush(stdout);
@@ -357,7 +358,7 @@ void *ThreadXbee(void *vargp){
 
 								}
 							pthread_mutex_lock(&lock_Post);
-							fila_Post(&FilaPost,buf,strlen(buf),2,0);
+							fila_Post(&FilaPost,buf,strlen(buf),2,1);
 							pthread_mutex_unlock(&lock_Post);
 
 							break;
@@ -439,6 +440,8 @@ int main(){
 	TipoFilaDado dado;
 	struct timeval start,start1;
 
+	printf("inicio\n");
+	fflush(stdout);
 	pthread_create(&(IdSerial), NULL, ThreadSerial, (void *)&(args));
 	pthread_create(&(IdXbee), NULL, ThreadXbee, (void *)&(args));
 	pthread_create(&(IdPost), NULL, ThreadPost, (void *)&(args));
